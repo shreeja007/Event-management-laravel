@@ -10,12 +10,31 @@ use Illuminate\Http\Request;
 
 class EventController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+
     public function index()
     {
-        return EventResource::collection(Event::with('user','attendees')->pagiante());
+        $query = Event::query();
+        $relations = ['user', 'attendees', 'attendees.user'];
+
+        foreach($relations as $relation) {
+            $query->when(
+                $this->shouldIncludeRelation($relation),
+                fn($q) => $q->with($relation)
+            );
+        }
+        return EventResource::collection($query->latest()->paginate());
+    }
+
+    protected function shouldIncludeRelation(string $relation): bool
+    {
+        $include = request()->query('include');
+
+        if(!$include){
+            return false;
+        }
+
+        $relations = array_map('trim', explode(',', $include)) ;
+        return in_array($relation, $relations);
     }
 
     /**
